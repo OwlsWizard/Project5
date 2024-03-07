@@ -8,6 +8,8 @@ from direct.task import Task
 
 from CollideObjectBase import *
 
+from typing import Callable
+
 #import math
 
 class Universe(InverseSphereCollideObj):
@@ -73,13 +75,13 @@ class Drone(CapsuleCollidableObject):
         self.modelNode.setScale(scaleVec)      
 
 
-class Player(CapsuleCollidableObject, ShowBase):
+class Player(CapsuleCollidableObject):
     def __init__(self,
                  loader: Loader, parentNode: NodePath,
                  nodeName: str, modelPath: str,   
                  texPath: str, 
                  posVec: Vec3, hpr: Vec3, scaleVec: float,
-                 taskMgr: Task, renderer: NodePath):
+                 taskMgr: Task, renderer: NodePath, accept: Callable[[str, Callable], None]):
 
         super(Player, self).__init__(loader, parentNode, nodeName, modelPath, 0, 0, 5, 0, 0, 4, 15) 
         
@@ -91,13 +93,23 @@ class Player(CapsuleCollidableObject, ShowBase):
         
         self.taskManager = taskMgr
         self.render = renderer
+        self.loader = loader
+        self.accept = accept
         
         self.turnRate = 0.5
+        self.reloadTime = 0.25
+        self.missileDistance = 4000
+        self.missileBay = 1 #Num missiles that can be launched at one time
+        
+        self.taskManager.add(self.checkIntervals, "checkMissiles", 34)
+        
         self.setKeybinds()
 
     def setKeybinds(self): 
         self.accept("space", self.thrust, [1])
         self.accept("space-up", self.thrust, [0])
+        
+        self.accept("f", self.fire)
         
         self.accept("a", self.leftTurn, [1])
         self.accept("a-up", self.leftTurn, [0])
@@ -122,7 +134,7 @@ class Player(CapsuleCollidableObject, ShowBase):
             self.taskManager.add(self.applyThrust, "forward-thrust")
         else:
             self.taskManager.remove("forward-thrust")
-            
+                      
     def leftTurn(self, keyDown):
         if keyDown:
             self.taskManager.add(self.applyLeftTurn, "left-turn")
@@ -176,6 +188,52 @@ class Player(CapsuleCollidableObject, ShowBase):
         self.modelNode.setFluidPos(self.modelNode.getPos() + trajectory * shipSpeed) #controls movement itself
         return Task.cont
     
+    def fire(self):
+        if self.missileBay:
+            travelRate = self.missileDistance #might be able to remove
+            aim = self.render.getRelativeVector(self.modelNode, Vec3.forward()) #can condense with trajectory from ship call
+            aim.normalize()
+            fireSolution = aim * travelRate
+            inFront = aim * 150 #needed to make missile look like it's firing from the front of the ship
+            travelVec = fireSolution + self.modelNode.getPos() #FIXME: COuld getPos() fix my relative movement issues?
+            self.missileBay -= 1
+            tag = "missile " + str(Missile.missileCount)    
+            posVec = self.modelNode.getPos() + inFront #spawns missile in front of the spaceship
+            currentMissile = Missile(self.loader, self.render, tag, "./Assets/Phaser/phaser.egg", posVec, 4.0)
+            Missile.intervals[tag] = currentMissile.modelNode.posInterval(2.0, travelVec, startPos = posVec, fluid = 1) #fluid = 1 checks for collisions b/t frames
+            Missile.intervals[tag].start()
+        else:
+            if not self.taskManager.hasTaskNamed("reload"):
+                print("init reload..." )
+                self.taskManager.doMethodLater(0, self.reload, 'reload')   
+                return Task.cont
+            
+    def reload(self, task):
+        if task.time > self.reloadTime:
+            self.missileBay += 1
+            print("Reload complete")
+            
+            if self.missileBay > 1:
+                self.missileBay = 1
+            
+            return Task.done
+        
+        elif task.time <= self.reloadTime:
+            print("reload processing....")
+            return Task.cont
+            
+    def checkIntervals(self, task):
+        for i in Missile.intervals:
+            if not Missile.intervals[i].isPlaying():
+                Missile.cNodes[i].detachNode()
+                Missile.fireModels[i].detachNode()
+                del Missile.intervals[i]
+                del Missile.fireModels[i]
+                del Missile.cNodes[i]
+                del Missile.collisionSolids[i]
+                print(i + " Has reached end of fire solution.")
+                break
+        return Task.cont
     #FIXME: Old methods for relative direction error at odd angles. Scraped for now, might try to reimplement later. 
     """
     def applyLeftTurn(self, task):
@@ -260,3 +318,25 @@ class Player(CapsuleCollidableObject, ShowBase):
     def applyRightRoll(self, task): 
         self.modelNode.setR(self.modelNode.getR() + self.turnRate)
         return Task.cont      
+    
+class Missile(SphereCollideObj):
+    fireModels = {}
+    cNodes = {}
+    collisionSolids = {}
+    intervals = {}
+    
+    missileCount = 0
+    
+    def __init__(self, loader: Loader, parentNode: NodePath, nodeName: str, modelPath: str, posVec: Vec3, scaleVec: float = 1.0):
+        super(Missile, self).__init__(loader, parentNode, nodeName, modelPath, Vec3(0,0,0), 3.0)
+        self.modelNode.setScale(scaleVec)
+        self.modelNode.setPos(posVec)
+        
+        Missile.missileCount += 1
+        
+        Missile.fireModels[nodeName] = self.modelNode
+        Missile.cNodes[nodeName] = self.collisionNode
+        
+        Missile.collisionSolids[nodeName] = self.collisionNode.node().getSolid(0)
+        Missile.cNodes[nodeName].show()
+        print("Fired torpedo #" + str(Missile.missileCount))

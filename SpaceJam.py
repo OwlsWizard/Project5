@@ -13,14 +13,12 @@ class MyApp(ShowBase):
         self.setCollisions()
         self.setCamera()
               
-    def setupScene(self):
-        
+    def setupScene(self):        
         """
         #LINES FOR TESTING
         self.camera.setPos(0.0, 0.0, 30000.0)
         self.camera.setHpr(0.0, -90.0, 0.0)
         self.disableMouse()
-        
         
         self.camera.setPos(0.0, 0.0, 500.0)
         self.camera.setHpr(0.0, -90.0, 0.0)
@@ -65,7 +63,7 @@ class MyApp(ShowBase):
                                              "Spaceship","./Assets/Spaceships/theBorg/theBorg.x",  
                                              "./Assets/Spaceships/theBorg/small_space_ship_2_color.jpg", 
                                              (0,0,0), (0,0,0), (0.75),
-                                             self.taskMgr, self.render) 
+                                             self.taskMgr, self.render, self.accept) 
         
         fullCycle = 60 #Controls num drones to spawn
         for i in range(fullCycle): #Populates drones
