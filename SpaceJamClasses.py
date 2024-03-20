@@ -67,7 +67,7 @@ class Drone(CapsuleCollidableObject):
                  texPath: str, 
                  posVec: Vec3, hpr: Vec3, scaleVec: float):
 
-        super(Drone, self).__init__(loader, parentNode, nodeName, modelPath, 0, 1.5, 1.5, 0, -1.5, -1.5, 2) 
+        super(Drone, self).__init__(loader, parentNode, nodeName, modelPath, 0, 0.5, 0.5, 0, -0.5, -0.5, 3) 
         self.modelNode.setTexture(loader.loadTexture(texPath), 1)
         
         self.modelNode.setPos(posVec)

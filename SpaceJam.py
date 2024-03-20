@@ -1,10 +1,11 @@
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import CollisionTraverser, CollisionHandlerPusher
+from panda3d.core import CollisionTraverser, CollisionHandlerPusher, TransparencyAttrib
+from direct.gui.OnscreenImage import OnscreenImage
+
+from CollideObjectBase import *
 
 import SpaceJamClasses as spaceJamClasses
 import DefensePaths as defensePaths
-
-from CollideObjectBase import *
 
 class MyApp(ShowBase): 
     def __init__(self):
@@ -12,6 +13,7 @@ class MyApp(ShowBase):
         self.setupScene()
         self.setCollisions()
         self.setCamera()
+        self.setHUD()
               
     def setupScene(self):        
         """
@@ -140,7 +142,11 @@ class MyApp(ShowBase):
         self.disableMouse()
         self.camera.reparentTo(self.Player.modelNode)
         self.camera.setFluidPos(0, 1, 0)#sets camera to ship cockpit
-          
+    
+    def setHUD(self):
+        self.Hud = OnscreenImage(image = "./Assets/Hud/Reticle3b.png", pos = Vec3(0,0,0), scale = 0.1)
+        self.Hud.setTransparency(TransparencyAttrib.MAlpha)
+              
                 
 #main        
 app = MyApp()
